@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agreement Generator & Digital Signer</title>
+<style>
+  :root {
+    --gold: #c5a059;
+    --gold-dark: #997b24;
+    --dark: #1a222e;
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --border: #e2e8f0;
+    --text: #2c3038;
+  }
+  * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+  body { margin: 0; padding: 15px; background: var(--bg); color: var(--text); }
+  .container { max-width: 880px; margin: 0 auto; }
+
+  /* Client Mode hides control panel and provider tools */
+  body.client-mode .control-panel,
+  body.client-mode .provider-only-tool {
+    display: none !important;
+  }
+  body.client-mode .client-banner {
+    display: flex;
+  }
+  .client-banner {
+    display: none;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    background: var(--dark);
+    color: #fff;
+    padding: 14px 18px;
+    border-radius: 10px;
+    margin-bottom: 18px;
+    border-left: 4px solid var(--gold);
+    font-size: 0.88rem;
+  }
+  
+  /* Control Panel */
+  .control-panel {
+    background: var(--card);
+    padding: 22px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+    margin-bottom: 25px;
+    border-top: 4px solid var(--gold);
+  }
+  .title { margin: 0 0 6px 0; color: var(--dark); font-size: 1.3rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .subtitle { margin: 0 0 16px 0; color: #64748b; font-size: 0.85rem; }
+  
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .field { display: flex; flex-direction: column; }
+  .field label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #475569; margin-bottom: 4px; }
+  .field input, .field select {
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    outline: none;
+    transition: all 0.2s;
+    background: white;
+  }
+  .field input:focus, .field select:focus { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(197, 160, 89, 0.2); }
+
+  .link-box {
+    margin-top: 14px;
+    padding: 12px;
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .link-box input {
+    flex: 1;
+    min-width: 220px;
+    padding: 8px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    background: #fff;
+    color: #334155;
+  }
+
+  .actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+  .btn {
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-sm { padding: 5px 10px; font-size: 0.76rem; }
+  .btn-gold { background: var(--gold); color: white; }
+  .btn-gold:hover { background: #b08d47; }
+  .btn-gps { background: #2563eb; color: white; }
+  .btn-gps:hover { background: #1d4ed8; }
+  .btn-outline { background: transparent; border: 1px solid #cbd5e1; color: #475569; }
+  .btn-outline:hover { background: #f1f5f9; }
+
+  /* Document Body */
+  .document {
+    background: var(--card);
+    padding: 40px 45px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    font-size: 9.6pt;
+    line-height: 1.55;
+    color: var(--text);
+  }
+  
+  /* Header & Emblem */
+  .doc-header {
+    text-align: center;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--gold);
+  }
+  .monogram-container {
+    display: inline-block;
+    width: 44px;
+    height: 44px;
+    border: 1.5px solid var(--gold);
+    border-radius: 50%;
+    margin-bottom: 8px;
+    background: #faf8f5;
+    text-align: center;
+    line-height: 40px;
+  }
+  .monogram-svg {
+    vertical-align: middle;
+    width: 22px;
+    height: 22px;
+    fill: var(--gold-dark);
+  }
+  .doc-title {
+    font-family: 'Georgia', serif;
+    font-size: 14.5pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.8px;
+    color: var(--dark);
+    margin: 3px 0 5px 0;
+  }
+  .doc-meta {
+    font-family: 'Georgia', serif;
+    font-size: 9pt;
+    color: #7a7067;
+    font-style: italic;
+    letter-spacing: 0.5px;
+  }
+
+  /* Section Styling */
+  .section-title {
+    font-family: 'Georgia', serif;
+    font-size: 10.2pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--dark);
+    letter-spacing: 1.1px;
+    margin-top: 18px;
+    margin-bottom: 8px;
+    padding-bottom: 3px;
+    border-bottom: 1px solid #ece7de;
+  }
+
+  .parties-card, .recitals-card {
+    background-color: #faf9f7;
+    border-left: 3px solid var(--gold);
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    border-radius: 0 4px 4px 0;
+  }
+  .parties-card p, .recitals-card p { margin: 4px 0; }
+
+  .clause { margin-bottom: 12px; }
+  .clause-title {
+    font-family: 'Georgia', serif;
+    font-weight: 700;
+    font-size: 9.8pt;
+    color: var(--dark);
+    margin-bottom: 4px;
+  }
+  .subclause { margin-top: 4px; margin-bottom: 5px; padding-left: 10px; }
+
+  .box-gold {
+    background-color: #fdfbf7;
+    border-left: 3px solid var(--gold);
+    padding: 9px 13px;
+    margin: 7px 0 7px 10px;
+    border-radius: 0 4px 4px 0;
+  }
+  .box-gold-title { font-weight: 700; color: #856404; margin-bottom: 3px; }
+
+  .box-blue {
+    background-color: #f6f9fc;
+    border-left: 3px solid #3b82f6;
+    padding: 9px 13px;
+    margin: 7px 0 7px 10px;
+    border-radius: 0 4px 4px 0;
+  }
+  .box-blue-title { font-weight: 700; color: #1e3a8a; margin-bottom: 3px; }
+
+  ul { margin: 3px 0 5px 16px; padding: 0; }
+  li { margin-bottom: 3px; }
+
+  .preview-val { color: #0284c7; font-weight: 600; }
+
+  /* Signatures */
+  .signatures-container { margin-top: 25px; }
+  .signatures-table { width: 100%; border-collapse: collapse; }
+  .signature-card {
+    width: 47%;
+    vertical-align: top;
+    padding: 14px 16px;
+    border: 1px solid #e2ded7;
+    background-color: #fdfdfd;
+    border-radius: 4px;
+  }
+  .signature-card-space { width: 6%; }
+  .sig-role {
+    font-family: 'Georgia', serif;
+    font-weight: 700;
+    font-size: 9.2pt;
+    text-transform: uppercase;
+    color: var(--dark);
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--gold);
+    padding-bottom: 5px;
+    margin-bottom: 12px;
+  }
+  .canvas-container {
+    width: 100%;
+    height: 95px;
+    background: #ffffff;
+    border: 1px dashed #cbd5e1;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    position: relative;
+  }
+  canvas { width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+  .sig-tools { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .sig-btn-group { display: flex; gap: 5px; }
+
+  /* Digital Audit Certificate Box */
+  .audit-certificate {
+    margin-top: 25px;
+    padding: 12px 16px;
+    border: 1px solid #cbd5e1;
+    background-color: #f8fafc;
+    border-radius: 6px;
+    font-size: 8pt;
+    color: #475569;
+  }
+  .audit-title {
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--dark);
+    letter-spacing: 0.8px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .audit-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .audit-item strong { color: #1e293b; }
+
+  @media (max-width: 600px) {
+    .document { padding: 22px 18px; }
+    .signatures-table, .signatures-table tbody, .signatures-table tr, .signature-card {
+      display: block;
+      width: 100%;
+    }
+    .signature-card { margin-bottom: 15px; }
+    .signature-card-space { display: none; }
+    .audit-grid { grid-template-columns: 1fr; }
+  }
+
+  @media print {
+    body { background: white; padding: 0; }
+    .control-panel, .client-banner, .sig-tools, .btn { display: none !important; }
+    .document { box-shadow: none; padding: 0; border-radius: 0; }
+    .canvas-container { border: none; }
+    .preview-val { color: #2c3038 !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Banner shown only when opened with ?client=1 -->
+  <div class="client-banner">
+    <div>
+      <strong>Client Signing View:</strong> Review the agreement and sign in <em>The Client</em> box below.
+    </div>
+    <button type="button" class="btn btn-gold btn-sm" onclick="window.print()">Save / Print PDF</button>
+  </div>
+
+  <!-- Control Panel -->
+  <div class="control-panel">
+    <h2 class="title">Personal Services Agreement Signer</h2>
+    <p class="subtitle">Configure terms, upload your signature image, and copy the client link.</p>
+    
+    <div class="grid">
+      <div class="field">
+        <label>Quick Preset Location (Currency & Law)</label>
+        <select id="presetLocation" onchange="applyPreset(this.value); syncLink();">
+          <option value="London">London, UK (\u00A3 GBP / UK GDPR)</option>
+          <option value="Barcelona">Barcelona, Spain (\u20AC EUR / EU GDPR & LOPDGDD)</option>
+          <option value="Madrid">Madrid, Spain (\u20AC EUR / EU GDPR & LOPDGDD)</option>
+          <option value="Paris">Paris, France (\u20AC EUR / EU GDPR)</option>
+          <option value="Rio">Rio de Janeiro, Brazil (R$ BRL / LGPD)</option>
+          <option value="SaoPaulo">S\u00E3o Paulo, Brazil (R$ BRL / LGPD)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Execution City / Jurisdiction</label>
+        <input type="text" id="inExecCity" value="City of London, United Kingdom" oninput="updateDoc(); syncLink();">
+      </div>
+      <div class="field">
+        <label>Agreed Location / Venue</label>
+        <input type="text" id="inLocation" value="Mayfair, London, UK" oninput="updateDoc(); syncLink();">
+      </div>
+      <div class="field">
+        <label>Client Full Name</label>
+        <input type="text" id="inClientName" value="Alex Smith" oninput="updateDoc(); syncLink();">
+      </div>
+      <div class="field">
+        <label>Client ID / Passport</label>
+        <input type="text" id="inClientId" value="GB8492019" oninput="updateDoc(); syncLink();">
+      </div>
+      <div class="field">
+        <label>Service Date</label>
+        <input type="text" id="inDate" value="19/11/2026" oninput="updateDoc(); syncLink();">
+      </div>
+      <div class="field">
+        <label>Agreed Hours</label>
+        <input type="text" id="inHours" value="20:00 - 23:00 (3 Hours)" oninput="updateDoc(); syncLink();">
+      </div>
+      <div class="field">
+        <label>Booking Deposit</label>
+        <input type="text" id="inRetainer" value="\u00A3100.00" oninput="updateDoc(); syncLink();">
+      </div>
+      <div class="field">
+        <label>Total Fee</label>
+        <input type="text" id="inFee" value="\u00A3600.00" oninput="updateDoc(); syncLink();">
+      </div>
+      <div class="field">
+        <label>Cash Portion</label>
+        <input type="text" id="inCash" value="\u00A3200.00" oninput="updateDoc(); syncLink();">
+      </div>
+      <div class="field">
+        <label>Card / Electronic Portion</label>
+        <input type="text" id="inCard" value="\u00A3400.00" oninput="updateDoc(); syncLink();">
+      </div>
+    </div>
+
+    <!-- Link for Client's Phone -->
+    <div class="link-box">
+      <span style="font-size: 0.78rem; font-weight: 700; color: var(--dark);">CLIENT PHONE LINK:</span>
+      <input type="text" id="clientShareLink" readonly>
+      <button type="button" class="btn btn-outline btn-sm" onclick="copyClientLink()">Copy Link</button>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-gps" onclick="fetchHybridLocation()">
+        <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10zm0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>
+        Auto-Detect Location (IP + GPS)
+      </button>
+      <button class="btn btn-gold" onclick="window.print()">
+        <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z"/><path d="M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2H5zM4 3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2H4V3zm1 5a2 2 0 0 0-2 2v1H2a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v-1a2 2 0 0 0-2-2H5zm7 2v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1z"/></svg>
+        Save / Print to PDF
+      </button>
+      <button class="btn btn-outline" onclick="clearSignatures()">Clear Client Signature</button>
+    </div>
+  </div>
+
+  <!-- Full Document -->
+  <div class="document">
+    <div class="doc-header">
+      <div class="monogram-container">
+        <svg class="monogram-svg" viewBox="0 0 24 24">
+          <path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5zm0 2.18l7 3.89v4.93c0 4.54-3.14 8.79-7 9.88-3.86-1.09-7-5.34-7-9.88V8.07l7-3.89zM11 7v2h2V7h-2zm0 4v6h2v-6h-2z"/>
+        </svg>
+      </div>
+      <h1 class="doc-title">Personal Services & Companionship Agreement</h1>
+      <div class="doc-meta">Executed in <span id="outExecCity" class="preview-val">City of London, United Kingdom</span> &bull; <span id="outExecutionDate">19/11/2026</span></div>
+    </div>
+
+    <div class="section-title">Parties</div>
+    <div class="parties-card">
+      <p><strong>Service Provider:</strong> <strong>Mr. Matheus Soares de Souza</strong>, of legal age, acting as an independent, self-employed professional companion.</p>
+      <p><strong>Client:</strong> <strong><span id="outClientName" class="preview-val">Alex Smith</span></strong>, of legal age, holder of Identification / Passport No. <strong><span id="outClientId" class="preview-val">GB8492019</span></strong>.</p>
+      <p style="font-size: 8.8pt; color: #555; margin-top: 5px;">Both Parties confirm that they are of legal majority, possess full legal capacity, and enter into this Agreement voluntarily.</p>
+    </div>
+
+    <div class="section-title">Recitals</div>
+    <div class="recitals-card">
+      <p><strong>I.</strong> The Client voluntarily requests and retains the personal companionship and hosting services of the Service Provider.</p>
+      <p><strong>II.</strong> The Service Provider acts as an independent, self-employed contractor rather than an employee of the Client.</p>
+      <p><strong>III.</strong> Both Parties wish to establish clear, fair, and transparent terms regarding scheduling, payment, refunds, boundaries, and confidentiality.</p>
+    </div>
+
+    <div class="section-title">Terms & Conditions</div>
+
+    <div class="clause">
+      <div class="clause-title">1. Nature & Scope of Service</div>
+      The service consists of social hosting, personal attention, and companionship during the agreed period. The Service Provider performs services independently and in good faith.
+    </div>
+
+    <div class="clause">
+      <div class="clause-title">2. Location, Date & Duration</div>
+      <ul>
+        <li><strong>Date of Service:</strong> <span id="outDate" class="preview-val">19/11/2026</span></li>
+        <li><strong>Agreed Time:</strong> <span id="outHours" class="preview-val">20:00 - 23:00 (3 Hours)</span></li>
+        <li><strong>Agreed Venue / Location:</strong> <span id="outLocation" class="preview-val">Mayfair, London, UK</span></li>
+      </ul>
+    </div>
+
+    <div class="clause">
+      <div class="clause-title">3. Booking Deposit, Cancellation & Refund Guarantees</div>
+      
+      <div class="subclause">
+        <strong>3.1 Booking Retainer:</strong> To reserve the agreed time slot, the Client agrees to pay an advance retainer of <strong><span id="outRetainer" class="preview-val">\u00A3100.00</span></strong>, which is applied toward the total agreed fee.
+      </div>
+
+      <div class="subclause">
+        <strong>3.2 Late Cancellation or No-Show:</strong> If the Client cancels on the scheduled day without prior mutual rescheduling or does not attend, the retainer may be retained to cover reserved availability and reasonable booking/preparation costs.
+      </div>
+
+      <div class="box-gold">
+        <div class="box-gold-title">&#10003; 3.3 Initial 10-Minute Satisfaction Guarantee & Refund</div>
+        If, within the <strong>first ten (10) minutes</strong> of starting, the Client concludes that the companionship or rapport does not meet expectations, the Client may end the session promptly:
+        <ul>
+          <li>Any prepaid amount corresponding to unused session time shall be refunded promptly on site (after deducting the booking retainer or reasonable travel/dispatch expenses actually incurred, where applicable).</li>
+          <li>The booking ends immediately without further obligation for remaining unrendered time.</li>
+        </ul>
+      </div>
+
+      <div class="box-blue">
+        <div class="box-blue-title">&#10003; 3.4 Service Provider Delay, Early Termination or Non-Performance</div>
+        <ul>
+          <li><strong>Provider Delay:</strong> If the Service Provider arrives late, the session end time may be extended by mutual agreement to preserve the full contracted duration, or a proportionate refund/adjustment will be issued for lost time.</li>
+          <li><strong>Provider Early Termination / Partial Completion:</strong> If the Service Provider needs to conclude the session before the agreed end time through no fault of the Client, any prepaid fee shall be refunded <strong>pro-rata according to the remaining unused time</strong> (calculated proportionally to the total contracted duration).</li>
+          <li><strong>Provider Cancellation / Inability to Perform:</strong> If the Service Provider cancels or cannot perform prior to commencement through no fault of the Client, <strong>100% of any deposit and prepaid fees will be refunded promptly</strong>.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="clause">
+      <div class="clause-title">4. Fees, Settlement & Late Payment</div>
+      <div class="subclause">
+        <strong>4.1 Agreed Fee & Payment Breakdown:</strong> The total agreed fee is <strong><span id="outFee" class="preview-val">\u00A3600.00</span></strong>, payable as agreed prior to or upon commencement of the session:
+        <ul>
+          <li>Cash: <span id="outCash" class="preview-val">\u00A3200.00</span></li>
+          <li>Card / Electronic Transfer: <span id="outCard" class="preview-val">\u00A3400.00</span></li>
+        </ul>
+      </div>
+      <div class="subclause">
+        <strong>4.2 Delayed Payment Before Start:</strong> If the agreed payment is not completed on time, the Service Provider may pause or defer commencement until settlement is confirmed.
+      </div>
+      <div class="subclause">
+        <strong>4.3 Overdue Balances & Default Interest:</strong> Any undisputed balance remaining unpaid after the agreed due date may accrue statutory default interest or, where permitted by applicable law, reasonable late interest of <strong>2% per month</strong> (pro-rata), together with documented reasonable collection costs permitted by law.
+      </div>
+    </div>
+
+    <div class="clause">
+      <div class="clause-title">5. Electronic Payments & Payment Disputes</div>
+      <div class="subclause">
+        <strong>5.1 Authorized Payment:</strong> Electronic payments made by or on behalf of the Client represent authorized payment for services agreed under this Agreement.
+      </div>
+      <div class="subclause">
+        <strong>5.2 Resolution of Disputes:</strong> Parties agree to raise any billing or service concern directly in good faith first. Where a payment dispute or chargeback is initiated for services actually rendered in accordance with this Agreement, the Service Provider may submit booking records and seek recovery of the unpaid balance plus lawful recovery expenses.
+      </div>
+    </div>
+
+    <div class="clause">
+      <div class="clause-title">6. Health, Personal Boundaries & Continuous Consent</div>
+      <div class="subclause">
+        <strong>6.1 Mutual & Ongoing Consent:</strong> All interactions must remain respectful, consensual, and within each Party's personal boundaries at all times, and consent may be withdrawn at any point.
+      </div>
+      <div class="subclause">
+        <strong>6.2 Respect, Safety & Lawful Conduct:</strong> Abusive or harassing conduct, non-consensual behavior, threats, or illegal substances are strictly prohibited.
+      </div>
+      <div class="subclause">
+        <strong>6.3 Termination for Safety or Boundary Breaches:</strong> Either Party may end the interaction immediately if personal safety, dignity, or clear boundaries are compromised, without prejudice to payment for time/services already provided or lawful remedies.
+      </div>
+    </div>
+
+    <div class="clause">
+      <div class="clause-title">7. Confidentiality & Recording Prohibition</div>
+      <div class="subclause">
+        <strong>7.1 Prohibition on Unauthorized Recording:</strong> Taking photos, video, or audio recordings of the other Party without explicit prior consent is strictly prohibited.
+      </div>
+      <div class="subclause">
+        <strong>7.2 Remedies for Breach of Privacy / Confidentiality:</strong> Unauthorized recording or disclosure of confidential personal information may give rise to civil liability for provable damages and equitable or legal remedies available under applicable law.
+      </div>
+      <div class="subclause">
+        <strong>7.3 Mutual Confidentiality:</strong> Both Parties agree to keep private details, communications, and personal information shared in connection with the booking confidential, except where disclosure is required by law or necessary to enforce rights or respond to a legal/payment dispute.
+      </div>
+    </div>
+
+    <div class="clause">
+      <div class="clause-title">8. Expenses, Data Protection & Governing Law</div>
+      <div class="subclause">
+        <strong>8.1 Additional Expenses:</strong> Any extra expenses (such as travel, tickets, or venue charges) apply only if agreed between the Parties.
+      </div>
+      <div class="subclause">
+        <strong>8.2 Data Protection:</strong> <span id="outDataLaw">Personal data is processed strictly for contractual and safety compliance under the UK General Data Protection Regulation (UK GDPR) and the Data Protection Act 2018.</span>
+      </div>
+      <div class="subclause">
+        <strong>8.3 Governing Law & Jurisdiction:</strong> <span id="outGoverningLaw">This Agreement is governed by the laws of England and Wales, subject to mandatory consumer or statutory provisions that may apply in the relevant jurisdiction.</span>
+      </div>
+    </div>
+
+    <!-- Signatures -->
+    <div class="signatures-container">
+      <p style="text-align: center; font-style: italic; font-size: 8.8pt; color: #666; margin-bottom: 12px;">
+        By signing below, the Parties acknowledge that they have read and agreed to these terms.
+      </p>
+
+      <table class="signatures-table">
+        <tr>
+          <td class="signature-card">
+            <div class="sig-role">The Service Provider</div>
+            <div class="canvas-container">
+              <canvas id="sigProvider"></canvas>
+            </div>
+            <div class="sig-tools provider-only-tool">
+              <input type="file" id="providerSigInput" accept="image/*" style="display:none" onchange="handleProviderUpload(event)">
+              <div class="sig-btn-group">
+                <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('providerSigInput').click()">Upload Signature</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="clearCanvas('sigProvider')">Clear</button>
+              </div>
+            </div>
+            <div style="font-size: 8.8pt; border-top: 1px solid #8c827a; padding-top: 4px;">
+              <strong>Name:</strong> <span>Matheus Soares de Souza</span><br>
+              <strong>Date:</strong> <span id="outProviderDate">19/11/2026</span>
+            </div>
+          </td>
+          <td class="signature-card-space"></td>
+          <td class="signature-card">
+            <div class="sig-role">The Client</div>
+            <div class="canvas-container">
+              <canvas id="sigClient"></canvas>
+            </div>
+            <div class="sig-tools">
+              <span style="font-size: 0.75rem; color: #64748b;">Client signs here</span>
+              <button type="button" class="btn btn-outline btn-sm" onclick="clearCanvas('sigClient')">Clear</button>
+            </div>
+            <div style="font-size: 8.8pt; border-top: 1px solid #8c827a; padding-top: 4px;">
+              <strong>Name:</strong> <span id="outSigClientName">Alex Smith</span><br>
+              <strong>Date:</strong> <span id="outClientSignDate">19/11/2026</span>
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Live IP & Security Audit Certificate -->
+    <div class="audit-certificate">
+      <div class="audit-title">
+        <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zm3.5 7.5a.5.5 0 0 1 0 1H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5H11.5z"/></svg>
+        Digital Signing Record &amp; Metadata
+      </div>
+      <div class="audit-grid">
+        <div class="audit-item"><strong>Execution Timestamp:</strong> <span id="auditTimestamp">Calculating...</span></div>
+        <div class="audit-item"><strong>Signer IP Address:</strong> <span id="auditIP">Detecting network IP...</span></div>
+        <div class="audit-item"><strong>Signing Device / User Agent:</strong> <span id="auditDevice">Detecting...</span></div>
+        <div class="audit-item"><strong>Record Status:</strong> <span style="color:#16a34a; font-weight:600;">Captured at Signing</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const SAVED_PROVIDER_SIGNATURE = "";
+  const urlParams = new URLSearchParams(window.location.search);
+  const IS_CLIENT_MODE = urlParams.get("client") === "1";
+
+  const jurisdictionPresets = {
+    London: {
+      execCity: "City of London, United Kingdom",
+      location: "Mayfair, London, UK",
+      currency: "\u00A3",
+      dataLaw: "Personal data is processed strictly for contractual and safety compliance under the UK General Data Protection Regulation (UK GDPR) and the Data Protection Act 2018.",
+      governingLaw: "This Agreement is governed by the laws of England and Wales, subject to any mandatory statutory rights applicable in the relevant jurisdiction."
+    },
+    Barcelona: {
+      execCity: "City of Barcelona, Kingdom of Spain",
+      location: "El Born / Eixample, Barcelona, Spain",
+      currency: "\u20AC",
+      dataLaw: "Personal data is processed strictly for contractual and safety compliance under Regulation (EU) 2016/679 (EU GDPR) and Spanish Organic Law 3/2018 on Personal Data Protection and Guarantee of Digital Rights (LOPDGDD).",
+      governingLaw: "This Agreement is governed by the applicable laws of the Kingdom of Spain, subject to mandatory statutory provisions under EU and local law."
+    },
+    Madrid: {
+      execCity: "City of Madrid, Kingdom of Spain",
+      location: "Salamanca, Madrid, Spain",
+      currency: "\u20AC",
+      dataLaw: "Personal data is processed strictly for contractual and safety compliance under Regulation (EU) 2016/679 (EU GDPR) and Spanish Organic Law 3/2018 on Personal Data Protection and Guarantee of Digital Rights (LOPDGDD).",
+      governingLaw: "This Agreement is governed by the applicable laws of the Kingdom of Spain, subject to mandatory statutory provisions under EU and local law."
+    },
+    Paris: {
+      execCity: "City of Paris, French Republic",
+      location: "8th Arrondissement, Paris, France",
+      currency: "\u20AC",
+      dataLaw: "Personal data is processed strictly for contractual and safety compliance under Regulation (EU) 2016/679 (EU GDPR) and the French Data Protection Act (Loi Informatique et Libert\u00E9s).",
+      governingLaw: "This Agreement is governed by the applicable laws of the French Republic, subject to mandatory statutory provisions under EU and French law."
+    },
+    Rio: {
+      execCity: "City of Rio de Janeiro, Federative Republic of Brazil",
+      location: "Ipanema, Rio de Janeiro, Brazil",
+      currency: "R$ ",
+      dataLaw: "Personal data is processed strictly for contractual and safety compliance under the Brazilian General Data Protection Law (Lei Geral de Prote\u00E7\u00E3o de Dados \u2013 LGPD, Federal Law No. 13.709/2018).",
+      governingLaw: "This Agreement is governed by the laws of the Federative Republic of Brazil, including the Brazilian Civil Code, subject to mandatory statutory provisions."
+    },
+    SaoPaulo: {
+      execCity: "City of S\u00E3o Paulo, Federative Republic of Brazil",
+      location: "Jardins, S\u00E3o Paulo, Brazil",
+      currency: "R$ ",
+      dataLaw: "Personal data is processed strictly for contractual and safety compliance under the Brazilian General Data Protection Law (Lei Geral de Prote\u00E7\u00E3o de Dados \u2013 LGPD, Federal Law No. 13.709/2018).",
+      governingLaw: "This Agreement is governed by the laws of the Federative Republic of Brazil, including the Brazilian Civil Code, subject to mandatory statutory provisions."
+    }
+  };
+
+  function swapCurrencySymbol(val, newSymbol) {
+    return val.replace(/^(R\$\s?|\u00A3|\u20AC|\$)?\s*/, newSymbol);
+  }
+
+  function applyPreset(val) {
+    const preset = jurisdictionPresets[val];
+    if (!preset) return;
+
+    document.getElementById('inExecCity').value = preset.execCity;
+    document.getElementById('inLocation').value = preset.location;
+
+    ['inRetainer', 'inFee', 'inCash', 'inCard'].forEach(fieldId => {
+      const el = document.getElementById(fieldId);
+      el.value = swapCurrencySymbol(el.value, preset.currency);
+    });
+
+    document.getElementById('outDataLaw').innerText = preset.dataLaw;
+    document.getElementById('outGoverningLaw').innerText = preset.governingLaw;
+
+    updateDoc();
+  }
+
+  function adaptLawAndCurrencyByCountry(countryName, cityName) {
+    const c = (countryName || "").toLowerCase();
+    const city = cityName || "Local Jurisdiction";
+    let currency = "\u20AC";
+    let dataLaw = "";
+    let governingLaw = "";
+
+    if (c.includes("united kingdom") || c.includes("uk") || c.includes("england")) {
+      currency = "\u00A3";
+      dataLaw = jurisdictionPresets.London.dataLaw;
+      governingLaw = `This Agreement is governed by the laws of England and Wales, with reference to ${city}, subject to mandatory statutory provisions.`;
+    } else if (c.includes("spain") || c.includes("espa\u00F1a")) {
+      currency = "\u20AC";
+      dataLaw = jurisdictionPresets.Barcelona.dataLaw;
+      governingLaw = `This Agreement is governed by the laws of the Kingdom of Spain, with reference to ${city}, subject to mandatory EU and local statutory provisions.`;
+    } else if (c.includes("france")) {
+      currency = "\u20AC";
+      dataLaw = jurisdictionPresets.Paris.dataLaw;
+      governingLaw = `This Agreement is governed by the laws of the French Republic, with reference to ${city}, subject to mandatory EU and French statutory provisions.`;
+    } else if (c.includes("brazil") || c.includes("brasil")) {
+      currency = "R$ ";
+      dataLaw = jurisdictionPresets.Rio.dataLaw;
+      governingLaw = `This Agreement is governed by the laws of Brazil, with reference to ${city}, subject to mandatory statutory provisions.`;
+    } else {
+      currency = "\u20AC";
+      dataLaw = "Personal data is processed strictly for contractual and safety compliance under Regulation (EU) 2016/679 (GDPR) and applicable local data protection legislation.";
+      governingLaw = `This Agreement is governed by the laws of ${countryName}, with reference to ${city}, subject to mandatory applicable statutory provisions.`;
+    }
+
+    ['inRetainer', 'inFee', 'inCash', 'inCard'].forEach(fieldId => {
+      const el = document.getElementById(fieldId);
+      el.value = swapCurrencySymbol(el.value, currency);
+    });
+
+    document.getElementById('outDataLaw').innerText = dataLaw;
+    document.getElementById('outGoverningLaw').innerText = governingLaw;
+  }
+
+  function updateDoc() {
+    const execCity = document.getElementById('inExecCity').value || 'City of London, United Kingdom';
+    const loc = document.getElementById('inLocation').value || '[Agreed Venue]';
+    const name = document.getElementById('inClientName').value || '[Client Name]';
+    const id = document.getElementById('inClientId').value || '[Passport/ID]';
+    const date = document.getElementById('inDate').value || '[Date]';
+    const hours = document.getElementById('inHours').value || '[Agreed Hours]';
+    const fee = document.getElementById('inFee').value || '[Total Fee]';
+    const retainer = document.getElementById('inRetainer').value || '[Retainer]';
+    const cash = document.getElementById('inCash').value || '[Cash]';
+    const card = document.getElementById('inCard').value || '[Card]';
+
+    document.getElementById('outExecCity').innerText = execCity;
+    document.getElementById('outLocation').innerText = loc;
+    document.getElementById('outClientName').innerText = name;
+    document.getElementById('outSigClientName').innerText = name;
+    document.getElementById('outClientId').innerText = id;
+    document.getElementById('outDate').innerText = date;
+    document.getElementById('outExecutionDate').innerText = date;
+    document.getElementById('outProviderDate').innerText = date;
+    document.getElementById('outClientSignDate').innerText = date;
+    document.getElementById('outHours').innerText = hours;
+    document.getElementById('outFee').innerText = fee;
+    document.getElementById('outRetainer').innerText = retainer;
+    document.getElementById('outCash').innerText = cash;
+    document.getElementById('outCard').innerText = card;
+  }
+
+  function syncLink() {
+    const base = window.location.href.split("?")[0];
+    const params = new URLSearchParams({
+      client: "1",
+      preset: document.getElementById("presetLocation").value,
+      execCity: document.getElementById("inExecCity").value,
+      location: document.getElementById("inLocation").value,
+      name: document.getElementById("inClientName").value,
+      id: document.getElementById("inClientId").value,
+      date: document.getElementById("inDate").value,
+      hours: document.getElementById("inHours").value,
+      retainer: document.getElementById("inRetainer").value,
+      fee: document.getElementById("inFee").value,
+      cash: document.getElementById("inCash").value,
+      card: document.getElementById("inCard").value
+    });
+    document.getElementById("clientShareLink").value = `${base}?${params.toString()}`;
+  }
+
+  function copyClientLink() {
+    const input = document.getElementById("clientShareLink");
+    input.select();
+    navigator.clipboard?.writeText(input.value);
+  }
+
+  function applyUrlParams() {
+    if (IS_CLIENT_MODE) {
+      document.body.classList.add("client-mode");
+    }
+    if (urlParams.has("preset") && jurisdictionPresets[urlParams.get("preset")]) {
+      document.getElementById("presetLocation").value = urlParams.get("preset");
+      applyPreset(urlParams.get("preset"));
+    }
+    if (urlParams.has("execCity")) document.getElementById("inExecCity").value = urlParams.get("execCity");
+    if (urlParams.has("location")) document.getElementById("inLocation").value = urlParams.get("location");
+    if (urlParams.has("name")) document.getElementById("inClientName").value = urlParams.get("name");
+    if (urlParams.has("id")) document.getElementById("inClientId").value = urlParams.get("id");
+    if (urlParams.has("date")) document.getElementById("inDate").value = urlParams.get("date");
+    if (urlParams.has("hours")) document.getElementById("inHours").value = urlParams.get("hours");
+    if (urlParams.has("retainer")) document.getElementById("inRetainer").value = urlParams.get("retainer");
+    if (urlParams.has("fee")) document.getElementById("inFee").value = urlParams.get("fee");
+    if (urlParams.has("cash")) document.getElementById("inCash").value = urlParams.get("cash");
+    if (urlParams.has("card")) document.getElementById("inCard").value = urlParams.get("card");
+  }
+
+  function drawImageFitCanvas(canvas, img) {
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const padding = 10;
+    const maxW = Math.max(20, canvas.width - padding * 2);
+    const maxH = Math.max(20, canvas.height - padding * 2);
+    const ratio = Math.min(maxW / img.width, maxH / img.height);
+    const drawW = img.width * ratio;
+    const drawH = img.height * ratio;
+    const offsetX = (canvas.width - drawW) / 2;
+    const offsetY = (canvas.height - drawH) / 2;
+
+    ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
+  }
+
+  function handleProviderUpload(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.getElementById("sigProvider");
+        drawImageFitCanvas(canvas, img);
+        try {
+          localStorage.setItem("providerSignatureImage", e.target.result);
+        } catch (err) {}
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function loadStoredProviderSignature(canvas) {
+    try {
+      const source = SAVED_PROVIDER_SIGNATURE || localStorage.getItem("providerSignatureImage");
+      if (!source) return;
+      const img = new Image();
+      img.onload = () => drawImageFitCanvas(canvas, img);
+      img.src = source;
+    } catch (err) {}
+  }
+
+  async function fetchHybridLocation() {
+    const btn = document.querySelector('.btn-gps');
+    btn.innerText = "Detecting Location...";
+
+    try {
+      const ipRes = await fetch('https://ipapi.co/json/');
+      const ipData = await ipRes.json();
+      if (ipData.city && ipData.country_name) {
+        document.getElementById('inExecCity').value = `City of ${ipData.city}, ${ipData.country_name}`;
+        document.getElementById('inLocation').value = `${ipData.city}, ${ipData.country_name}`;
+        document.getElementById('auditIP').innerText = ipData.ip || document.getElementById('auditIP').innerText;
+        adaptLawAndCurrencyByCountry(ipData.country_name, ipData.city);
+        updateDoc();
+        syncLink();
+        btn.innerHTML = '<svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10zm0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg> Location, Currency & Law Set!';
+      }
+    } catch (e) {
+      console.log("IP lookup failed, trying GPS...");
+    }
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+            const data = await res.json();
+            const city = data.address.city || data.address.town || data.address.suburb || "London";
+            const country = data.address.country || "United Kingdom";
+            const road = data.address.road ? data.address.road + ", " : "";
+
+            document.getElementById('inExecCity').value = `City of ${city}, ${country}`;
+            document.getElementById('inLocation').value = `${road}${city}, ${country}`;
+            adaptLawAndCurrencyByCountry(country, city);
+            updateDoc();
+            syncLink();
+            btn.innerHTML = '<svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10zm0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg> GPS Exact Location & Law Set!';
+          } catch (err) {
+            document.getElementById('inExecCity').value = `GPS (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
+            updateDoc();
+          }
+        },
+        (err) => {
+          console.log("GPS prompt skipped or denied; IP location preserved.");
+        },
+        { timeout: 8000, enableHighAccuracy: true }
+      );
+    }
+  }
+
+  async function fetchNetworkIP() {
+    try {
+      const res = await fetch('https://api.ipify.org?format=json');
+      const data = await res.json();
+      document.getElementById('auditIP').innerText = data.ip;
+    } catch (e) {
+      document.getElementById('auditIP').innerText = 'Logged via Network Gateway';
+    }
+  }
+
+  function updateAuditTrail() {
+    const now = new Date();
+    document.getElementById('auditTimestamp').innerText = now.toUTCString();
+    
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    document.getElementById('inDate').value = `${day}/${month}/${year}`;
+    
+    const ua = navigator.userAgent;
+    let device = "Standard Web Device";
+    if (/iPhone|iPad|iPod/i.test(ua)) device = "Apple iOS Device";
+    else if (/Android/i.test(ua)) device = "Android Mobile Device";
+    else if (/Macintosh/i.test(ua)) device = "Mac OS Workstation";
+    else if (/Windows/i.test(ua)) device = "Windows Workstation";
+    document.getElementById('auditDevice').innerText = device;
+  }
+
+  function setupSignature(canvasId, options = {}) {
+    const canvas = document.getElementById(canvasId);
+    const ctx = canvas.getContext('2d');
+    let drawing = false;
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#1a222e';
+      if (options.loadStored) {
+        loadStoredProviderSignature(canvas);
+      }
+    }
+    window.addEventListener('resize', resizeCanvas);
+    setTimeout(resizeCanvas, 100);
+
+    if (options.readOnly) {
+      canvas.style.pointerEvents = "none";
+      return;
+    }
+
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    function startDraw(e) {
+      drawing = true;
+      const pos = getPos(e);
+      ctx.beginPath();
+      ctx.moveTo(pos.x, pos.y);
+      e.preventDefault();
+    }
+    function draw(e) {
+      if (!drawing) return;
+      const pos = getPos(e);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+      e.preventDefault();
+    }
+    function stopDraw() { drawing = false; }
+
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', draw);
+    window.addEventListener('mouseup', stopDraw);
+
+    canvas.addEventListener('touchstart', startDraw, { passive: false });
+    canvas.addEventListener('touchmove', draw, { passive: false });
+    window.addEventListener('touchend', stopDraw);
+  }
+
+  function clearCanvas(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (canvasId === 'sigProvider') {
+      try { localStorage.removeItem("providerSignatureImage"); } catch (e) {}
+    }
+  }
+
+  function clearSignatures() {
+    clearCanvas('sigClient');
+  }
+
+  updateAuditTrail();
+  applyUrlParams();
+  updateDoc();
+  syncLink();
+  fetchNetworkIP();
+  setupSignature('sigProvider', { readOnly: IS_CLIENT_MODE, loadStored: true });
+  setupSignature('sigClient', { readOnly: false, loadStored: false });
+</script>
+</body>
+</html>
